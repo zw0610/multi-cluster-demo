@@ -1,0 +1,14 @@
+layout:
+- go.kubebuilder.io/v3
+projectName: multi-cluster-demo
+repo: github.com/zw0610/multi-cluster-demo
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  group: kubeflow.org
+  kind: KubeflowJob
+  path: github.com/zw0610/multi-cluster-demo/api/v1
+  version: v1
+version: "3"

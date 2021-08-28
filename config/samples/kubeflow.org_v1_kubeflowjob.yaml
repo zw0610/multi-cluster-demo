@@ -1,0 +1,7 @@
+apiVersion: kubeflow.org/v1
+kind: KubeflowJob
+metadata:
+  name: kubeflowjob-sample
+spec:
+  # Add fields here
+  foo: bar

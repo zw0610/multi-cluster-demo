@@ -1,0 +1,24 @@
+# permissions for end users to edit kubeflowjobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubeflowjob-editor-role
+rules:
+- apiGroups:
+  - kubeflow.org
+  resources:
+  - kubeflowjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kubeflow.org
+  resources:
+  - kubeflowjobs/status
+  verbs:
+  - get
