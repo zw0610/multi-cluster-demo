@@ -1,7 +1,0 @@
-apiVersion: test.nozomi.xyz/v1
-kind: KubefflowJob
-metadata:
-  name: kubefflowjob-sample
-spec:
-  # Add fields here
-  foo: bar
