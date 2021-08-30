@@ -22,9 +22,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/clientcmd"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"time"
 )
 
@@ -33,6 +36,33 @@ type KubeflowJobReconciler struct {
 	client.Client
 	clientMapper map[string]client.Client
 	Scheme       *runtime.Scheme
+}
+
+// TODO(zw0610): move SetupClients to manager internally
+func (r *KubeflowJobReconciler) SetupClients(kubeconfig string, mgr manager.Manager) {
+	config := clientcmd.GetConfigFromFileOrDie(kubeconfig)
+
+	if r.clientMapper == nil {
+		r.clientMapper = map[string]client.Client{}
+	}
+
+	for contextName, _ := range config.Contexts {
+
+		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+			&clientcmd.ConfigOverrides{CurrentContext: contextName}).ClientConfig()
+
+		if err != nil {
+			os.Exit(1)
+		}
+
+		c, err := client.New(cfg, client.Options{
+			Scheme: mgr.GetScheme(),
+			Mapper: mgr.GetRESTMapper(),
+		})
+
+		r.clientMapper[contextName] = c
+	}
 }
 
 const (
@@ -63,6 +93,7 @@ func (r *KubeflowJobReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: kfjob.Name,
+			Namespace: kfjob.Namespace,
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -74,7 +105,7 @@ func (r *KubeflowJobReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		},
 	}
 
-	err = r.Create(workerCtx, pod, nil)
+	err = r.Create(workerCtx, pod)
 	if err != nil {
 		logger.Info("Failed to create pod on", ClusterKey, workerCtx.Value(ClusterKey))
 		return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second}, err
@@ -84,7 +115,8 @@ func (r *KubeflowJobReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *KubeflowJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *KubeflowJobReconciler) SetupWithManager(kubeconfig string, mgr ctrl.Manager) error {
+	r.SetupClients(kubeconfig, mgr)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubefloworgv1.KubeflowJob{}).
 		Complete(r)
